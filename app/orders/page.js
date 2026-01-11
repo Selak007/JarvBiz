@@ -2,10 +2,12 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useRouter } from 'next/navigation';
+import { useChat } from '../context/ChatContext';
 
 export default function OrdersPage() {
     const { user } = useAuth();
     const router = useRouter();
+    const { openChat } = useChat();
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
 
@@ -46,56 +48,91 @@ export default function OrdersPage() {
                 </div>
             ) : (
                 <div className="orders-list">
-                    {orders.map(order => (
-                        <div key={order.order_id} className="order-card glass-card">
-                            <div className="order-header">
-                                <div>
-                                    <h3>Order #{order.order_id}</h3>
-                                    <span className="order-date">{new Date(order.order_date).toLocaleDateString()}</span>
-                                </div>
-                                <div className="order-status-badge">
-                                    {order.delivery_status || order.order_status}
-                                </div>
-                            </div>
-
-                            <div className="delivery-info">
-                                <div className="info-item">
-                                    <span className="label">Status</span>
-                                    <span className="value">{order.delivery_status || 'Processing'}</span>
-                                </div>
-                                {order.expected_delivery_date && (
-                                    <div className="info-item">
-                                        <span className="label">Expected Delivery</span>
-                                        <span className="value">{new Date(order.expected_delivery_date).toLocaleDateString()}</span>
+                    {orders.map(order => {
+                        const status = order.delivery_status || order.order_status;
+                        const isDelayed = status === 'DELAYED' || status === 'Delayed';
+                        return (
+                            <div key={order.order_id} className="order-card glass-card">
+                                <div className="order-header">
+                                    <div>
+                                        {/* <h3>Order #{order.order_id}</h3> */}
+                                        <span className="order-date">{new Date(order.order_date).toLocaleDateString()}</span>
                                     </div>
-                                )}
-                                {order.current_location && (
-                                    <div className="info-item">
-                                        <span className="label">Last Location</span>
-                                        <span className="value">{order.current_location}</span>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="order-items">
-                                {order.items && order.items.map(item => (
-                                    <div key={item.order_item_id} className="order-item">
-                                        <span className="item-qty">{item.quantity}x</span>
-                                        <div className="item-name">
-                                            <span>{item.product_name}</span>
-                                            <span className="item-brand">{item.brand}</span>
+                                    <div className="order-status-group">
+                                        <div className={`order-status-badge ${isDelayed ? 'delayed' : ''}`}>
+                                            {status}
                                         </div>
-                                        <span className="item-price">${item.price}</span>
+                                        {isDelayed && (
+                                            <button
+                                                className="help-btn"
+                                                onClick={() => openChat({
+                                                    title: `Delivery Support`,
+                                                    initialQuery: `My order ${order.order_id} has been delayed. Can you help me with the status?`,
+                                                    initialDisplay: `My order has been delayed. Can you help me with the status?`,
+                                                    agentType: 'DELIVERY'
+                                                })}
+                                                title="Ask about delay"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></svg>
+                                            </button>
+                                        )}
                                     </div>
-                                ))}
-                            </div>
+                                </div>
 
-                            <div className="order-footer">
-                                <span>Total Amount</span>
-                                <span className="total-price">${order.total_amount}</span>
+                                <div className="delivery-info">
+                                    <div className="info-item">
+                                        <span className="label">Status</span>
+                                        <span className="value">{order.delivery_status || 'Processing'}</span>
+                                    </div>
+                                    {order.expected_delivery_date && (
+                                        <div className="info-item">
+                                            <span className="label">Expected Delivery</span>
+                                            <span className="value">{new Date(order.expected_delivery_date).toLocaleDateString()}</span>
+                                        </div>
+                                    )}
+                                    {order.current_location && (
+                                        <div className="info-item">
+                                            <span className="label">Last Location</span>
+                                            <span className="value">{order.current_location}</span>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="order-items">
+                                    {order.items && order.items.map(item => (
+                                        <div key={item.order_item_id} className="order-item">
+                                            <span className="item-qty">{item.quantity}x</span>
+                                            <div className="item-name">
+                                                <span>{item.product_name}</span>
+                                                <span className="item-brand">{item.brand}</span>
+                                            </div>
+                                            <span className="item-price">${item.price}</span>
+
+                                            <button
+                                                className="refund-btn"
+                                                onClick={() => openChat({
+                                                    title: `Refund Request: ${item.product_name}`,
+                                                    agentType: 'REFUND',
+                                                    metaData: {
+                                                        customer_id: user.customer_id,
+                                                        order_id: order.order_id,
+                                                        order_item_id: item.order_item_id
+                                                    }
+                                                })}
+                                            >
+                                                Refund
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="order-footer">
+                                    <span>Total Amount</span>
+                                    <span className="total-price">${order.total_amount}</span>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        )
+                    })}
                 </div>
             )}
 
@@ -122,6 +159,11 @@ export default function OrdersPage() {
             display: block;
             margin-top: 0.25rem;
         }
+        .order-status-group {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
         .order-status-badge {
             background: hsl(var(--primary) / 0.2);
             color: hsl(var(--primary));
@@ -130,6 +172,28 @@ export default function OrdersPage() {
             font-size: 0.75rem;
             font-weight: 600;
             text-transform: uppercase;
+        }
+        .order-status-badge.delayed {
+            background: hsl(var(--destructive) / 0.2);
+            color: hsl(var(--destructive));
+        }
+        .help-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: hsl(var(--secondary));
+            color: hsl(var(--secondary-foreground));
+            border: 1px solid hsl(var(--border));
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .help-btn:hover {
+            background: hsl(var(--primary));
+            color: white;
+            transform: scale(1.1);
         }
         .delivery-info {
             display: grid;
@@ -164,6 +228,13 @@ export default function OrdersPage() {
             display: flex;
             align-items: center;
             gap: 1rem;
+            position: relative;
+            padding: 0.5rem;
+            border-radius: 0.5rem;
+            transition: background 0.2s;
+        }
+        .order-item:hover {
+            background: hsl(var(--muted) / 0.3);
         }
         .item-qty {
             font-weight: 600;
@@ -178,6 +249,23 @@ export default function OrdersPage() {
         .item-brand {
             font-size: 0.75rem;
             color: hsl(var(--muted-foreground));
+        }
+        .refund-btn {
+            opacity: 0;
+            background: hsl(var(--destructive));
+            color: white;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: 1rem;
+            transform: translateX(10px);
+        }
+        .order-item:hover .refund-btn {
+            opacity: 1;
+            transform: translateX(0);
         }
         .order-footer {
             display: flex;

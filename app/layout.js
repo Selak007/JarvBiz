@@ -3,6 +3,7 @@ import './globals.css';
 import Header from './components/Header';
 import { AuthProvider } from './context/AuthContext';
 import { CartProvider } from './context/CartContext';
+import { ChatProvider } from './context/ChatContext';
 import Cart from './components/Cart';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -17,16 +18,17 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
-          <CartProvider>
-            <div className="layout-wrapper">
-              <Header />
-              <Cart />
-              <main className="main-content">
-                {children}
-                {/* ... */}
-              </main>
-            </div>
-          </CartProvider>
+          <ChatProvider>
+            <CartProvider>
+              <div className="layout-wrapper">
+                <Header />
+                <Cart />
+                <main className="main-content">
+                  {children}
+                </main>
+              </div>
+            </CartProvider>
+          </ChatProvider>
         </AuthProvider>
       </body>
     </html>
