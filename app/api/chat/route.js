@@ -33,6 +33,9 @@ export async function POST(req) {
         } else if (agentType === 'REFUND') {
             agentId = process.env.REFUND_AGENT_ID;
             agentAliasId = process.env.REFUND_AGENT_ALIAS_ID;
+        } else if (agentType === 'COMPLAINT') {
+            agentId = process.env.COMPLAINT_AGENT_ID;
+            agentAliasId = process.env.COMPLAINT_AGENT_ALIAS_ID;
         }
 
         const command = new InvokeAgentCommand({

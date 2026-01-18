@@ -12,6 +12,7 @@ export default function RiskChatbox({ title, initialQuery, initialDisplay, agent
 
     // Track if we are waiting for the refund reason input
     const [isWaitingForRefundReason, setIsWaitingForRefundReason] = useState(agentType === 'REFUND');
+    const [isWaitingForComplaintReason, setIsWaitingForComplaintReason] = useState(agentType === 'COMPLAINT');
 
     useEffect(() => {
         // Reset state when chat opens or changes context
@@ -19,6 +20,7 @@ export default function RiskChatbox({ title, initialQuery, initialDisplay, agent
         setSessionId(newSessionId);
         setMessages([]);
         setIsWaitingForRefundReason(agentType === 'REFUND');
+        setIsWaitingForComplaintReason(agentType === 'COMPLAINT');
         initializedRef.current = false;
 
         // Immediate initialization based on type
@@ -32,6 +34,8 @@ export default function RiskChatbox({ title, initialQuery, initialDisplay, agent
             // Explicitly set the agent message
             setMessages([{ role: "agent", content: "Please state the reason for the refund." }]);
             console.log("RiskChatbox: Initialized REFUND prompt");
+        } else if (agentType === 'COMPLAINT') {
+            setMessages([{ role: "agent", content: "I'm sorry to hear that. Please describe the issue with the product." }]);
         } else if (initialQuery) {
             // For other agents, send initial query
             // We manually add the user message and trigger the fetch to ensure control
@@ -75,6 +79,39 @@ export default function RiskChatbox({ title, initialQuery, initialDisplay, agent
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     };
 
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef(null);
+
+    const handleFileSelect = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setUploading(true);
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const res = await fetch("/api/upload", {
+                method: "POST",
+                body: formData,
+            });
+            const data = await res.json();
+
+            if (res.ok && data.url) {
+                // Send the URL to the agent
+                sendMessage(`Here is the image of the damaged product: ${data.url}`);
+            } else {
+                setMessages(prev => [...prev, { role: "error", content: "Failed to upload image." }]);
+            }
+        } catch (error) {
+            console.error("Upload error:", error);
+            setMessages(prev => [...prev, { role: "error", content: "Error uploading image." }]);
+        } finally {
+            setUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    };
+
     const sendMessage = async (text) => {
         if (!text.trim()) return;
 
@@ -84,11 +121,15 @@ export default function RiskChatbox({ title, initialQuery, initialDisplay, agent
 
         let payloadText = text;
 
-        // Intercept refund reason
+        // Intercept refund/complaint reason
         if (isWaitingForRefundReason) {
             const { customer_id, order_id, order_item_id } = metaData || {};
             payloadText = `I need a refund for this details : customer_id "${customer_id}", order_id "${order_id}", order_item_id "${order_item_id}" , the reason of the refund is "${text}"`;
             setIsWaitingForRefundReason(false);
+        } else if (isWaitingForComplaintReason) {
+            const { customer_id, order_id, order_item_id } = metaData || {};
+            payloadText = `Customer (${customer_id}), Order (${order_id}), Order Item (${order_item_id}), I need to raise a complaint for this product, the issue is: ${text}`;
+            setIsWaitingForComplaintReason(false);
         }
 
         try {
@@ -140,14 +181,33 @@ export default function RiskChatbox({ title, initialQuery, initialDisplay, agent
             </div>
             <div className="chatbox-input">
                 <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
+                />
+
+                {agentType === 'COMPLAINT' && (
+                    <button
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={loading || uploading}
+                        title="Upload Image"
+                        style={{ background: 'hsl(var(--muted))', color: 'hsl(var(--foreground))', padding: '0.5rem' }}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" /></svg>
+                    </button>
+                )}
+
+                <input
                     type="text"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
-                    placeholder="Type your message..."
-                    disabled={loading}
+                    placeholder={uploading ? "Uploading..." : "Type your message..."}
+                    disabled={loading || uploading}
                 />
-                <button onClick={() => sendMessage(input)} disabled={loading}>
+                <button onClick={() => sendMessage(input)} disabled={loading || uploading}>
                     Send
                 </button>
             </div>

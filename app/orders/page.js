@@ -122,6 +122,20 @@ export default function OrdersPage() {
                                             >
                                                 Refund
                                             </button>
+                                            <button
+                                                className="complaint-btn"
+                                                onClick={() => openChat({
+                                                    title: `Complaint: ${item.product_name}`,
+                                                    agentType: 'COMPLAINT',
+                                                    metaData: {
+                                                        customer_id: user.customer_id,
+                                                        order_id: order.order_id,
+                                                        order_item_id: item.order_item_id
+                                                    }
+                                                })}
+                                            >
+                                                Complaint
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
@@ -263,9 +277,24 @@ export default function OrdersPage() {
             margin-left: 1rem;
             transform: translateX(10px);
         }
-        .order-item:hover .refund-btn {
+        .order-item:hover .refund-btn, .order-item:hover .complaint-btn {
             opacity: 1;
             transform: translateX(0);
+        }
+        .complaint-btn {
+            opacity: 0;
+            background: hsl(var(--destructive)); /* Red for complaint too? Or maybe orange? User said "similar to previous refund agent". Let's use warning/orange color or just standard button. */
+            /* Actually, refund is destructive (red). Complaint might be better as warning or secondary. */
+            background: #f59e0b; /* Amber-500 */
+            color: white;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: 0.5rem;
+            transform: translateX(10px);
         }
         .order-footer {
             display: flex;
